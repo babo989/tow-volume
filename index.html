@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tow Volume">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4f6f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1416" media="(prefers-color-scheme: dark)">
+<title>Tow Volume</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --bg:#f4f6f5; --card:#ffffff; --ink:#0d1b1e; --mute:#5a6b6e; --line:#d5dcda;
+  --go:#0b6e4f; --stop:#b3261e; --warn:#8a5a00; --accent:#0a5c7a;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0c1416; --card:#152124; --ink:#eef4f3; --mute:#9db0b2; --line:#2a3a3d;
+         --go:#3ecf9a; --stop:#ff7b72; --warn:#f2c14e; --accent:#6cc7e6; }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 14px)
+          calc(env(safe-area-inset-bottom) + 24px) calc(env(safe-area-inset-left) + 14px);
+  max-width:560px; margin-inline:auto;
+}
+h1{font-size:20px; margin:4px 0 10px; letter-spacing:-.01em}
+h2{font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--mute); margin:0 0 8px; font-weight:600}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
+.status{display:flex; justify-content:space-between; gap:10px; align-items:center; font-size:14px; color:var(--mute); margin-bottom:10px}
+.dot{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--mute); margin-right:6px; vertical-align:baseline}
+.dot.ok{background:var(--go)} .dot.weak{background:var(--warn)} .dot.bad{background:var(--stop)}
+.big{text-align:center; padding:6px 0 10px}
+.big .val{font-size:64px; font-weight:700; letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums}
+.big .unit{font-size:20px; color:var(--mute); font-weight:600; margin-left:4px}
+.big .sub{color:var(--mute); font-size:16px; margin-top:6px; font-variant-numeric:tabular-nums}
+.grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; border-top:1px solid var(--line); padding-top:12px}
+.cell .k{font-size:12px; color:var(--mute); text-transform:uppercase; letter-spacing:.06em}
+.cell .v{font-size:24px; font-weight:650; font-variant-numeric:tabular-nums; line-height:1.15}
+.cell .s{font-size:13px; color:var(--mute); font-variant-numeric:tabular-nums}
+.fields{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+label{display:block; font-size:13px; color:var(--mute)}
+input{
+  width:100%; margin-top:4px; padding:11px 12px; font-size:20px; font-weight:600; color:var(--ink);
+  background:var(--bg); border:1px solid var(--line); border-radius:10px; font-variant-numeric:tabular-nums;
+}
+input:focus{outline:2px solid var(--accent); outline-offset:1px}
+.hint{font-size:13px; color:var(--mute); margin:8px 0 0}
+.btns{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px}
+button{
+  font:inherit; font-size:20px; font-weight:700; padding:18px 10px; border-radius:14px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink); min-height:64px; touch-action:manipulation;
+}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.4}
+#primary{background:var(--go); color:#fff; border-color:transparent}
+@media (prefers-color-scheme: dark){ #primary{color:#04140e} }
+#primary.pause{background:var(--card); color:var(--ink); border-color:var(--line)}
+#finish{color:var(--stop)}
+.small{font-size:15px; font-weight:600; padding:10px 12px; min-height:44px; border-radius:10px}
+.msg{font-size:14px; color:var(--warn); margin:0 0 10px; min-height:0}
+.msg:empty{display:none}
+table{width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); font-weight:600; text-align:right; padding:4px 4px}
+td{padding:7px 4px; border-top:1px solid var(--line); text-align:right; white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+.row{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+.empty{color:var(--mute); font-size:14px; margin:0}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<h1>Tow Volume</h1>
+
+<div class="card">
+  <div class="status">
+    <span><span id="dot" class="dot"></span><span id="gps">GPS not started</span></span>
+    <span id="state">Ready</span>
+  </div>
+  <div class="big">
+    <div><span class="val" id="vol">0.00</span><span class="unit">m³</span></div>
+    <div class="sub"><span id="liters">0</span> L filtered<span id="concWrap" hidden> · <span id="conc">–</span>× concentrated</span></div>
+  </div>
+  <div class="grid">
+    <div class="cell"><div class="k">Distance</div><div class="v" id="dist">0</div><div class="s">m</div></div>
+    <div class="cell"><div class="k">Speed</div><div class="v" id="kn">0.0</div><div class="s">kn · <span id="ms">0.00</span> m/s</div></div>
+    <div class="cell"><div class="k">Time</div><div class="v" id="time">0:00</div><div class="s">avg <span id="avg">0.0</span> kn</div></div>
+  </div>
+</div>
+
+<p class="msg" id="msg" role="status"></p>
+
+<div class="btns">
+  <button id="primary">Start tow</button>
+  <button id="finish" disabled>Finish</button>
+</div>
+
+<div class="card">
+  <h2>Net</h2>
+  <div class="fields">
+    <label>Mouth diameter (cm)
+      <input id="diam" type="number" inputmode="decimal" min="1" step="any" placeholder="30">
+    </label>
+    <label>Filtration efficiency (%)
+      <input id="eff" type="number" inputmode="decimal" min="1" max="100" step="any" value="100">
+    </label>
+    <label>Sample volume (mL)
+      <input id="samp" type="number" inputmode="decimal" min="0" step="any" placeholder="optional">
+    </label>
+    <label>Tow label
+      <input id="label" type="text" placeholder="optional" autocomplete="off">
+    </label>
+  </div>
+  <p class="hint">Volume = π × (diameter ÷ 2)² × distance × efficiency. Enter the cod-end sample volume to get the concentration factor.</p>
+</div>
+
+<div class="card">
+  <h2>Tow log</h2>
+  <div id="logWrap"></div>
+  <div class="row">
+    <button class="small" id="copy">Copy CSV</button>
+    <button class="small" id="dl">Download CSV</button>
+    <button class="small" id="clear">Clear log</button>
+  </div>
+</div>
+
+<p class="hint">Keep this page open with the screen on while towing. The phone stops reporting position to a web page when it locks or you switch apps. Distance is over ground from GPS, so a current running with or against you is not accounted for.</p>
+
+<script>
+"use strict";
+// ---------- pure helpers ----------
+const MAX_ACC_M = 25;      // ignore fixes worse than this
+const MIN_STEP_M = 8;      // position fallback: ignore movement smaller than this (GPS jitter)
+const MAX_GAP_S = 10;      // longest gap bridged by speed integration
+const MAX_SPEED_MS = 15;   // reject jumps faster than this
+const MS_TO_KN = 1.943844;
+
+function haversine(a, b){
+  const R = 6371008.8, r = Math.PI/180;
+  const dLat = (b.lat-a.lat)*r, dLon = (b.lon-a.lon)*r;
+  const s = Math.sin(dLat/2)**2 + Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.min(1, Math.sqrt(s)));
+}
+function volumeM3(diamCm, distM, effPct){
+  const d = diamCm/100;
+  if(!(d>0) || !(distM>0)) return 0;
+  const e = (effPct>0 ? Math.min(effPct,100) : 100)/100;
+  return Math.PI*(d/2)**2*distM*e;
+}
+function fmtTime(ms){
+  const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor(s%3600/60), ss = String(s%60).padStart(2,"0");
+  return h ? h+":"+String(m).padStart(2,"0")+":"+ss : m+":"+ss;
+}
+function fmtVol(v){ return v<10 ? v.toFixed(2) : v<100 ? v.toFixed(1) : Math.round(v).toString(); }
+// Advance the track with a new fix. prev = {anchor, last, rejects}; returns {add, anchor, last, rejects, speed}.
+// Preferred: integrate the phone's Doppler speed over time (accurate at slow tow speeds).
+// Fallback when the phone gives no speed: straight-line steps between positions, ignoring jitter.
+function advance(prev, fix){
+  const last = prev.last, hasSpeed = fix.speed!=null && fix.speed>=0 && fix.speed<=MAX_SPEED_MS;
+  if(hasSpeed && last && last.speed!=null){
+    const dt = (fix.t-last.t)/1000;
+    if(dt>0 && dt<=MAX_GAP_S) return {add:(fix.speed+last.speed)/2*dt, anchor:fix, last:fix, rejects:0, speed:fix.speed};
+  }
+  const keep = hasSpeed ? fix : Object.assign({}, fix, {speed:null});
+  if(!prev.anchor) return {add:0, anchor:fix, last:keep, rejects:0, speed:hasSpeed ? fix.speed : null};
+  const d = haversine(prev.anchor, fix), dt = (fix.t-prev.anchor.t)/1000;
+  if(d < Math.max(MIN_STEP_M, fix.acc)) return {add:0, anchor:hasSpeed ? fix : prev.anchor, last:keep, rejects:prev.rejects, speed:hasSpeed ? fix.speed : null};
+  if(dt<=0 || d/dt > MAX_SPEED_MS){
+    return prev.rejects>=2 ? {add:0, anchor:fix, last:keep, rejects:0, speed:null}
+                           : {add:0, anchor:prev.anchor, last:keep, rejects:prev.rejects+1, speed:null};
+  }
+  return {add:d, anchor:fix, last:keep, rejects:0, speed:hasSpeed ? fix.speed : d/dt};
+}
+if(typeof module!=="undefined"){ module.exports={haversine,volumeM3,fmtTime,advance,fmtVol}; }
+
+// ---------- app ----------
+if(typeof document!=="undefined"){
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+let S = Object.assign({status:"idle", dist:0, elapsed:0, segStart:null, startedAt:null},
+                      store.get("tow.state", {}));
+let log = store.get("tow.log", []);
+let speed = 0, lastSpeedAt = 0, watchId = null, wake = null;
+let T = {anchor:null, last:null, rejects:0};   // track state, not persisted
+
+// restore: a tow that was running when the page closed comes back paused
+if(S.status==="running"){ S.status="paused"; S.segStart=null; }
+["diam","eff","samp","label"].forEach(id=>{
+  const v = store.get("tow.in."+id, null); if(v!=null) $(id).value = v;
+  $(id).addEventListener("input", ()=>{ store.set("tow.in."+id, $(id).value); render(); });
+});
+
+function elapsedMs(){ return S.elapsed + (S.status==="running" && S.segStart ? Date.now()-S.segStart : 0); }
+function save(){ store.set("tow.state", S); }
+function num(id){ const v = parseFloat($(id).value); return isFinite(v) ? v : NaN; }
+
+function render(){
+  const v = volumeM3(num("diam"), S.dist, num("eff"));
+  $("vol").textContent = fmtVol(v);
+  $("liters").textContent = Math.round(v*1000).toLocaleString();
+  const samp = num("samp");
+  if(samp>0 && v>0){ $("concWrap").hidden=false; $("conc").textContent = Math.round(v*1e6/samp).toLocaleString(); }
+  else $("concWrap").hidden = true;
+  $("dist").textContent = S.dist<1000 ? Math.round(S.dist) : (S.dist/1000).toFixed(2)+"k";
+  const sp = (S.status==="running" && Date.now()-lastSpeedAt<8000) ? speed : 0;
+  $("kn").textContent = (sp*MS_TO_KN).toFixed(1);
+  $("ms").textContent = sp.toFixed(2);
+  const ms = elapsedMs();
+  $("time").textContent = fmtTime(ms);
+  $("avg").textContent = ms>0 ? (S.dist/(ms/1000)*MS_TO_KN).toFixed(1) : "0.0";
+  $("state").textContent = {idle:"Ready", running:"Towing", paused:"Paused"}[S.status];
+  const p = $("primary");
+  p.textContent = {idle:"Start tow", running:"Pause", paused:"Resume"}[S.status];
+  p.classList.toggle("pause", S.status==="running");
+  $("finish").disabled = S.status==="idle";
+}
+
+function setGps(cls, text){ $("dot").className = "dot "+cls; $("gps").textContent = text; }
+
+function onPos(pos){
+  const c = pos.coords, fix = {lat:c.latitude, lon:c.longitude, acc:c.accuracy, t:pos.timestamp, speed:c.speed};
+  const good = fix.acc <= MAX_ACC_M;
+  setGps(good ? (fix.acc<=10 ? "ok" : "weak") : "bad", "GPS ±"+Math.round(fix.acc)+" m"+(good ? "" : " (too weak, waiting)"));
+  if(S.status!=="running" || !good) return;
+  const r = advance(T, fix);
+  T = {anchor:r.anchor, last:r.last, rejects:r.rejects};
+  if(r.add>0) S.dist += r.add;
+  if(r.speed!=null){ speed = r.speed; lastSpeedAt = Date.now(); }
+  save(); render();
+}
+function onErr(e){
+  const m = {1:"Location permission denied. Allow location for this site in Settings, then reload.",
+             2:"Position unavailable. Move to open sky.", 3:"GPS timed out. Still trying."}[e.code] || "GPS error.";
+  setGps("bad", "No GPS"); $("msg").textContent = m;
+}
+function startWatch(){
+  if(!("geolocation" in navigator)){ $("msg").textContent = "This browser has no location support."; return false; }
+  if(!window.isSecureContext){ $("msg").textContent = "Location needs an https address. Open this page from its https link."; return false; }
+  if(watchId==null){
+    setGps("", "Finding GPS…");
+    watchId = navigator.geolocation.watchPosition(onPos, onErr, {enableHighAccuracy:true, maximumAge:0, timeout:20000});
+  }
+  return true;
+}
+function stopWatch(){ if(watchId!=null){ navigator.geolocation.clearWatch(watchId); watchId=null; } setGps("", "GPS off"); }
+async function lockScreenOn(){
+  try{ if("wakeLock" in navigator && !wake){ wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", ()=>{ wake=null; }); } }
+  catch(e){ $("msg").textContent = "Could not keep the screen on. Set Auto-Lock to Never while towing."; }
+}
+function unlockScreen(){ try{ wake && wake.release(); }catch(e){} wake=null; }
+
+$("primary").addEventListener("click", ()=>{
+  $("msg").textContent = "";
+  if(S.status==="running"){
+    S.elapsed = elapsedMs(); S.segStart=null; S.status="paused"; unlockScreen();
+  }else{
+    if(!(num("diam")>0)){ $("msg").textContent = "Enter the net mouth diameter first."; $("diam").focus(); return; }
+    if(!startWatch()) return;
+    if(S.status==="idle"){ S.dist=0; S.elapsed=0; S.startedAt=new Date().toISOString(); }
+    S.segStart = Date.now(); T = {anchor:null, last:null, rejects:0}; S.status="running"; lockScreenOn();
+  }
+  save(); render();
+});
+
+$("finish").addEventListener("click", ()=>{
+  if(S.status==="idle") return;
+  const ms = elapsedMs(), v = volumeM3(num("diam"), S.dist, num("eff")), samp = num("samp");
+  log.unshift({
+    start:S.startedAt, label:$("label").value.trim(), diam_cm:num("diam"), eff_pct:num("eff")>0 ? Math.min(num("eff"),100) : 100,
+    dist_m:+S.dist.toFixed(1), dur_s:Math.round(ms/1000), avg_kn:ms>0 ? +(S.dist/(ms/1000)*MS_TO_KN).toFixed(2) : 0,
+    vol_m3:+v.toFixed(4), sample_ml:samp>0 ? samp : "", conc_x:samp>0 && v>0 ? Math.round(v*1e6/samp) : ""
+  });
+  store.set("tow.log", log);
+  S = {status:"idle", dist:0, elapsed:0, segStart:null, startedAt:null};
+  speed = 0; save(); stopWatch(); unlockScreen(); renderLog(); render();
+});
+
+function csv(){
+  const cols = ["start","label","diam_cm","eff_pct","dist_m","dur_s","avg_kn","vol_m3","sample_ml","conc_x"];
+  const esc = v => { v = String(v==null ? "" : v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  return [cols.join(",")].concat(log.map(r=>cols.map(c=>esc(r[c])).join(","))).join("\n");
+}
+function renderLog(){
+  const w = $("logWrap");
+  w.textContent = "";
+  if(!log.length){ const p = document.createElement("p"); p.className="empty"; p.textContent="Finished tows appear here."; w.appendChild(p); return; }
+  const sc = document.createElement("div"); sc.className="scroll";
+  const t = document.createElement("table");
+  const head = t.insertRow(); ["Tow","m","min","kn","m³","×"].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; head.appendChild(th); });
+  log.forEach(r=>{
+    const d = r.start ? new Date(r.start) : null;
+    const when = d ? d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}) : "";
+    const row = t.insertRow();
+    [ (r.label ? r.label+" · " : "")+when, Math.round(r.dist_m), (r.dur_s/60).toFixed(1), Number(r.avg_kn).toFixed(1),
+      fmtVol(Number(r.vol_m3)), r.conc_x==="" ? "–" : Number(r.conc_x).toLocaleString() ]
+      .forEach(v=>{ row.insertCell().textContent = v; });
+  });
+  sc.appendChild(t); w.appendChild(sc);
+}
+$("copy").addEventListener("click", async ()=>{
+  try{ await navigator.clipboard.writeText(csv()); $("msg").textContent = "Log copied."; }
+  catch(e){ $("msg").textContent = "Copy was blocked by the browser."; }
+});
+$("dl").addEventListener("click", ()=>{
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv()], {type:"text/csv"}));
+  a.download = "tow-log.csv"; document.body.appendChild(a); a.click(); a.remove();
+});
+let clearArmed = 0;
+$("clear").addEventListener("click", ()=>{
+  if(Date.now()-clearArmed < 4000){ log=[]; store.set("tow.log", log); renderLog(); $("clear").textContent="Clear log"; clearArmed=0; }
+  else{ clearArmed = Date.now(); $("clear").textContent="Tap again to clear"; setTimeout(()=>{ $("clear").textContent="Clear log"; }, 4000); }
+});
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="visible" && S.status==="running"){ T = {anchor:null, last:null, rejects:0}; lockScreenOn(); $("msg").textContent = "The page was in the background. Distance covered while it was hidden was not counted."; }
+});
+if(S.status==="paused") $("msg").textContent = "Restored a tow in progress. Tap Resume to continue.";
+setInterval(render, 500);
+renderLog(); render();
+}
+</script>
+<script>
+// Offline support: cache the app so it opens with no signal after the first visit.
+if("serviceWorker" in navigator && window.isSecureContext){
+  window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+</script>
+</body>
+</html>
